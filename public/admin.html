@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WTP Admin</title>
+  <link rel="stylesheet" href="/css/admin-style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+</head>
+
+<body>
+  <!-- LOGIN -->
+  <div id="login-screen">
+    <div class="login-box">
+      <div class="icon">??</div>
+      <h1>Admin Panel</h1>
+      <p class="sub">Bitte melde dich an</p>
+      <div class="pw-row">
+        <input id="a-pw" type="password" placeholder="Passwort" />
+        <button class="btn-login" onclick="doLogin()">Login</button>
+      </div>
+      <div class="login-err" id="login-err"></div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app">
+    <header>
+      <div class="logo">WTP <em>Admin</em></div>
+      <div class="hdr-right">
+        <span class="badge-admin">ADMIN</span>
+        <button class="btn" onclick="doLogout()">Logout</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- LEFT: Add & Statistics -->
+      <div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Neues Projekt</h2>
+          </div>
+          <div class="panel-body">
+            <div class="field"><label>NAME</label><input id="a-name" maxlength="40" /></div>
+            <div class="field"><label>TITEL</label><input id="a-title" maxlength="60" /></div>
+            <div class="field">
+              <label>WTP-LINK</label>
+              <input id="a-url" onchange="checkUrl()" onkeyup="checkUrl()" />
+              <div class="url-hint" id="url-hint"></div>
+            </div>
+            <button class="btn btn-y" style="width:100%;margin-top:8px" onclick="doAdd()">+ Hinzufügen</button>
+            <button class="btn btn-sm" style="width:100%;margin-top:6px;color:var(--muted)"
+              onclick="prevFromInput()">Vorschau</button>
+            <div class="fb" id="a-fb"></div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:20px">
+          <div class="panel-head">
+            <h2>Statistik</h2>
+          </div>
+          <div class="panel-body">
+            <div class="stats">
+              <div>
+                <div class="stat-val" id="s-total">0</div>
+                <div class="stat-lbl">Insgesamt</div>
+              </div>
+              <div>
+                <div class="stat-val" id="s-today">0</div>
+                <div class="stat-lbl">Heute</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:20px">
+          <div class="panel-head">
+            <h2>Gefahr</h2>
+          </div>
+          <div class="panel-body">
+            <div class="danger-box">
+              <h3>Alle löschen</h3>
+              <button class="btn btn-r" onclick="deleteAll()">Alle Projekte löschen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Project List -->
+      <div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Projekte</h2>
+          </div>
+          <div class="panel-body">
+            <div class="proj-list" id="proj-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREVIEW MODAL -->
+  <div class="overlay" id="prev-ov" onclick="closePrevIfBg(event)">
+    <div class="prev-modal">
+      <div class="prev-head">
+        <div class="title" id="prev-title">Vorschau</div>
+        <div class="prev-status" id="prev-status">Lädt...</div>
+      </div>
+      <div class="prev-iframe-wrap">
+        <iframe id="prev-frame" allow="usb;clipboard-write"></iframe>
+        <div class="prev-iframe-loading" id="prev-ld">
+          <div class="spinner"></div>
+          <div id="prev-ld-txt">Lädt...</div>
+        </div>
+      </div>
+      <div class="prev-console empty" id="prev-co">Keine Ausgabe</div>
+      <div class="prev-foot">
+        <button class="btn btn-sm" onclick="prevRun()">Neu starten</button>
+        <button class="btn btn-sm" onclick="closePrev()">Schliessen</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/admin.js"></script>
+</body>
+
+</html>

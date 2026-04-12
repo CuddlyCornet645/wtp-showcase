@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WTP Projekte</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">WTP Projekte</div>
+    <div class="hdr-right">
+      <button class="btn btn-y" onclick="openModal()">Einreichen</button>
+    </div>
+  </header>
+
+  <!-- SUBMIT MODAL -->
+  <div class="overlay" id="overlay" onclick="bgClose(event)">
+    <div class="modal">
+      <h2>Projekt einreichen</h2>
+      <p class="sub">Gib deinen Vorname, Titel und Freigabe-Link ein</p>
+      <div class="field"><label>DEIN NAME *</label><input id="m-name" placeholder="z.B. Jannick Tobler" maxlength="40" />
+      </div>
+      <div class="field"><label>PROJEKT-TITEL (optional)</label><input id="m-title" placeholder="z.B. Stern"
+          maxlength="60" /></div>
+      <div class="field"><label>WEBTIGERPYTHON-LINK *</label><input id="m-url"
+          placeholder="https://webtigerpython.ethz.ch/#?code=..." /></div>
+      <div class="fb" id="m-fb"></div>
+      <div class="modal-foot">
+        <button class="btn" onclick="closeModal()">Abbrechen</button>
+        <button class="btn btn-y" onclick="doSubmit()">Einreichen</button>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <script type="module" src="/js/main.js"></script>
+</body>
+
+</html>

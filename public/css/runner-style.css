@@ -1,0 +1,19 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #f8f9fa;
+  overflow: hidden;
+}
+
+#wtp-iframe {
+  position: fixed;
+  left: -2000px;
+  top: 0;
+  width: 900px;
+  height: 600px;
+  border: none;
+}

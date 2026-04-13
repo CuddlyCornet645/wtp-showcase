@@ -2,16 +2,21 @@
 // API: Backend communication
 // ═══════════════════════════════════════════════════════════════════════
 
+export async function fetchConfig() {
+  const res = await fetch('/api/config');
+  return await res.json();
+}
+
 export async function fetchProjects() {
   const res = await fetch('/api/projects');
   return await res.json();
 }
 
-export async function submitProject(name, title, url) {
+export async function submitProject(name, title, url, token) {
   const res = await fetch('/api/projects', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, title, url })
+    body: JSON.stringify({ name, title, url, token })
   });
   const data = await res.json();
   return { ok: res.ok, data };
@@ -39,11 +44,11 @@ export async function adminCheck() {
   return data;
 }
 
-export async function adminLogin(password) {
+export async function adminLogin(password, token) {
   const res = await fetch('/api/admin/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password })
+    body: JSON.stringify({ password, token })
   });
   return res.ok;
 }

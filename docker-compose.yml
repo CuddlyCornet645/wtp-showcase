@@ -8,6 +8,8 @@ services:
       - ./projects.json:/app/projects.json
     environment:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SITE_KEY: ${SITE_KEY}
+      SECRET_KEY: ${SECRET_KEY}
       PORT: 3000
       LISTEON_ON: "0.0.0.0"
 

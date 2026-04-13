@@ -5,6 +5,7 @@
 import { esc, decodeWTPCode } from './utils.js';
 import { WTPRunner } from './wtp-runner.js';
 import {
+  fetchConfig,
   fetchProjects,
   submitProject,
   deleteProject,
@@ -18,6 +19,8 @@ let allProjects = [];
 let prevRunner = null;
 let prevUrl = '';
 let prevOutput = { text: '', isError: false };
+let turnstileConfig = { hasTurnstile: false, siteKey: '' };
+let loginTurnstileId = null;
 
 // ═══════════════════════════════════════════════════════════════════════
 // Auth
@@ -32,13 +35,26 @@ export async function doLogin() {
     return;
   }
 
-  const ok = await adminLogin(pw);
+  let token = '';
+  if (turnstileConfig.hasTurnstile && window.turnstile) {
+    token = window.turnstile.getResponse(loginTurnstileId);
+    if (!token) {
+      err.textContent = 'Bitte führe die Captcha-Verifizierung durch';
+      return;
+    }
+  }
+
+  const ok = await adminLogin(pw, token);
   if (ok) {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     loadProjects();
   } else {
     err.textContent = 'Falsches Passwort';
+    // Reset Turnstile if enabled
+    if (turnstileConfig.hasTurnstile && window.turnstile && loginTurnstileId) {
+      window.turnstile.reset(loginTurnstileId);
+    }
   }
   document.getElementById('a-pw').value = '';
 }
@@ -338,6 +354,15 @@ window.closePrevIfBg = closePrevIfBg;
 
 // Check session and load
 window.addEventListener('DOMContentLoaded', async () => {
+  // Load Turnstile config
+  turnstileConfig = await fetchConfig();
+  if (turnstileConfig.hasTurnstile && window.turnstile) {
+    loginTurnstileId = window.turnstile.render('#login-turnstile', {
+      sitekey: turnstileConfig.siteKey,
+      theme: 'light'
+    });
+  }
+
   const d = await adminCheck();
   if (d.isAdmin) {
     document.getElementById('login-screen').style.display = 'none';

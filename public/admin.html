@@ -7,6 +7,7 @@
   <title>WTP Admin</title>
   <link rel="stylesheet" href="/css/admin-style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 
 <body>
@@ -20,6 +21,7 @@
         <input id="a-pw" type="password" placeholder="Passwort" />
         <button class="btn-login" onclick="doLogin()">Login</button>
       </div>
+      <div id="login-turnstile"></div>
       <div class="login-err" id="login-err"></div>
     </div>
   </div>

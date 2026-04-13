@@ -10,10 +10,16 @@ const DATA_FILE = path.join(__dirname, 'projects.json');
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || Math.random().toString(36).slice(-10);;
+const TURNSTILE_SITE_KEY = process.env.SITE_KEY || null;
+const TURNSTILE_SECRET_KEY = process.env.SECRET_KEY || null;
 
 if (!process.env.ADMIN_PASSWORD) {
-  console.log(`   No Admin-Password provided!`);
+  console.log(`\n   No Admin-Password provided!`);
   console.log(`   Generated a new one: ${ADMIN_PASSWORD}`);
+}
+
+if (!TURNSTILE_SITE_KEY || !TURNSTILE_SECRET_KEY) {
+  console.log(`   ⚠ Turnstile disabled (SITE_KEY/SECRET_KEY not set)`);
 }
 
 // ── Middleware ───────────────────────────────────────────────────────────────
@@ -37,9 +43,48 @@ function saveProjects(projects) {
 }
 function isAdmin(req) { return req.session && req.session.isAdmin === true; }
 
+// Verify Cloudflare Turnstile token
+async function verifyTurnstile(token) {
+  if (!TURNSTILE_SECRET_KEY) return true; // Turnstile disabled
+  if (!token) return false;
+
+  try {
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        secret: TURNSTILE_SECRET_KEY,
+        response: token
+      })
+    });
+    const data = await response.json();
+    return data.success === true;
+  } catch (error) {
+    console.error('Turnstile verification error:', error);
+    return false;
+  }
+}
+
 // ── Auth ─────────────────────────────────────────────────────────────────────
-app.post('/api/admin/login', (req, res) => {
-  if (req.body.password === ADMIN_PASSWORD) {
+app.get('/api/config', (req, res) => {
+  res.json({
+    hasTurnstile: !!TURNSTILE_SITE_KEY,
+    siteKey: TURNSTILE_SITE_KEY || ''
+  });
+});
+
+app.post('/api/admin/login', async (req, res) => {
+  const { password, token } = req.body;
+
+  // Verify Turnstile token if enabled
+  if (TURNSTILE_SECRET_KEY) {
+    const isValid = await verifyTurnstile(token);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Captcha verification failed.' });
+    }
+  }
+
+  if (password === ADMIN_PASSWORD) {
     req.session.isAdmin = true;
     res.json({ ok: true });
   } else {
@@ -61,10 +106,18 @@ app.get('/api/projects', (req, res) => {
   res.json(loadProjects());
 });
 
-app.post('/api/projects', (req, res) => {
-  const { name, url, title } = req.body;
+app.post('/api/projects', async (req, res) => {
+  const { name, url, title, token } = req.body;
   if (!name || !url)
     return res.status(400).json({ error: 'Name und URL sind erforderlich.' });
+
+  // Verify Turnstile token if enabled
+  if (TURNSTILE_SECRET_KEY) {
+    const isValid = await verifyTurnstile(token);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Captcha verification failed.' });
+    }
+  }
 
   let parsedUrl;
   try { parsedUrl = new URL(url); } catch {

@@ -7,6 +7,7 @@
   <title>WTP Projekte</title>
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 
 <body>
@@ -23,12 +24,14 @@
     <div class="modal">
       <h2>Projekt einreichen</h2>
       <p class="sub">Gib deinen Vorname, Titel und Freigabe-Link ein</p>
-      <div class="field"><label>DEIN NAME *</label><input id="m-name" placeholder="z.B. Jannick Tobler" maxlength="40" />
+      <div class="field"><label>DEIN NAME *</label><input id="m-name" placeholder="z.B. Jannick Tobler"
+          maxlength="40" />
       </div>
       <div class="field"><label>PROJEKT-TITEL (optional)</label><input id="m-title" placeholder="z.B. Stern"
           maxlength="60" /></div>
       <div class="field"><label>WEBTIGERPYTHON-LINK *</label><input id="m-url"
           placeholder="https://webtigerpython.ethz.ch/#?code=..." /></div>
+      <div id="submit-turnstile"></div>
       <div class="fb" id="m-fb"></div>
       <div class="modal-foot">
         <button class="btn" onclick="closeModal()">Abbrechen</button>

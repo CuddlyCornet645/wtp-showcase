@@ -4,11 +4,13 @@
 
 import { esc, decodeWTPCode } from './utils.js';
 import { WTPRunner } from './wtp-runner.js';
-import { fetchProjects, submitProject } from './api.js';
+import { fetchConfig, fetchProjects, submitProject } from './api.js';
 
 let projects = [];
 const runners = new Map(); // id -> WTPRunner instance
 const output = new Map();  // id -> { text, isError }
+let turnstileConfig = { hasTurnstile: false, siteKey: '' };
+let submitTurnstileId = null;
 
 // ═══════════════════════════════════════════════════════════════════════
 // Load and render projects
@@ -207,11 +209,22 @@ function updateProgress() {
 
 export function openModal() {
   document.getElementById('overlay').classList.add('open');
+  // Initialize Turnstile for submit if enabled and not already rendered
+  if (turnstileConfig.hasTurnstile && window.turnstile && !submitTurnstileId) {
+    submitTurnstileId = window.turnstile.render('#submit-turnstile', {
+      sitekey: turnstileConfig.siteKey,
+      theme: 'light'
+    });
+  }
 }
 
 export function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   setFb('', null);
+  // Reset Turnstile on close
+  if (turnstileConfig.hasTurnstile && window.turnstile && submitTurnstileId) {
+    window.turnstile.reset(submitTurnstileId);
+  }
 }
 
 export function bgClose(e) {
@@ -240,9 +253,22 @@ export async function doSubmit() {
     return;
   }
 
-  const { ok, data } = await submitProject(name, title, url);
+  let token = '';
+  if (turnstileConfig.hasTurnstile && window.turnstile) {
+    token = window.turnstile.getResponse(submitTurnstileId);
+    if (!token) {
+      setFb('Bitte führe die Captcha-Verifizierung durch', true);
+      return;
+    }
+  }
+
+  const { ok, data } = await submitProject(name, title, url, token);
   if (!ok) {
     setFb(data.error || 'Fehler beim Einreichen', true);
+    // Reset Turnstile on error
+    if (turnstileConfig.hasTurnstile && window.turnstile && submitTurnstileId) {
+      window.turnstile.reset(submitTurnstileId);
+    }
     return;
   }
 
@@ -270,4 +296,8 @@ window.bgClose = bgClose;
 window.doSubmit = doSubmit;
 
 // Auto-load on page load
-window.addEventListener('DOMContentLoaded', loadProjects);
+window.addEventListener('DOMContentLoaded', async () => {
+  // Load Turnstile config
+  turnstileConfig = await fetchConfig();
+  loadProjects();
+});

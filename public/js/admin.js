@@ -21,6 +21,7 @@ let prevUrl = '';
 let prevOutput = { text: '', isError: false };
 let turnstileConfig = { hasTurnstile: false, siteKey: '' };
 let loginTurnstileId = null;
+let addTurnstileId = null;
 
 // ═══════════════════════════════════════════════════════════════════════
 // Auth
@@ -35,15 +36,17 @@ export async function doLogin() {
     return;
   }
 
-  // Get Turnstile token if available (optional)
   let token = '';
   if (turnstileConfig.hasTurnstile && window.turnstile) {
-    token = window.turnstile.getResponse(loginTurnstileId) || '';
+    token = window.turnstile.getResponse(loginTurnstileId);
+    if (!token) {
+      err.textContent = 'Bitte führe die Captcha-Verifizierung durch';
+      return;
+    }
   }
 
   const ok = await adminLogin(pw, token);
   if (ok) {
-    err.textContent = '';
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     loadProjects();
@@ -199,10 +202,24 @@ export async function doAdd() {
     return;
   }
 
-  const { ok, data } = await submitProject(name, title, url);
+  let token = '';
+  if (turnstileConfig.hasTurnstile && window.turnstile) {
+    token = window.turnstile.getResponse(addTurnstileId);
+    if (!token) {
+      fb.textContent = 'Bitte führe die Captcha-Verifizierung durch';
+      fb.className = 'fb err';
+      return;
+    }
+  }
+
+  const { ok, data } = await submitProject(name, title, url, token);
   if (!ok) {
     fb.textContent = data.error;
     fb.className = 'fb err';
+    // Reset Turnstile if enabled
+    if (turnstileConfig.hasTurnstile && window.turnstile && addTurnstileId) {
+      window.turnstile.reset(addTurnstileId);
+    }
     return;
   }
 
@@ -212,6 +229,10 @@ export async function doAdd() {
   document.getElementById('a-title').value = '';
   document.getElementById('a-url').value = '';
   document.getElementById('url-hint').textContent = '';
+  // Reset Turnstile if enabled
+  if (turnstileConfig.hasTurnstile && window.turnstile && addTurnstileId) {
+    window.turnstile.reset(addTurnstileId);
+  }
   loadProjects();
 }
 
@@ -356,6 +377,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   turnstileConfig = await fetchConfig();
   if (turnstileConfig.hasTurnstile && window.turnstile) {
     loginTurnstileId = window.turnstile.render('#login-turnstile', {
+      sitekey: turnstileConfig.siteKey,
+      theme: 'light'
+    });
+    addTurnstileId = window.turnstile.render('#add-turnstile', {
       sitekey: turnstileConfig.siteKey,
       theme: 'light'
     });

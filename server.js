@@ -76,20 +76,21 @@ app.get('/api/config', (req, res) => {
 app.post('/api/admin/login', async (req, res) => {
   const { password, token } = req.body;
 
-  // Verify Turnstile token if enabled
-  if (TURNSTILE_SECRET_KEY) {
+  // Check password first
+  if (password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Falsches Passwort.' });
+  }
+
+  // Verify Turnstile token if enabled (optional - doesn't block login if it fails)
+  if (TURNSTILE_SECRET_KEY && token) {
     const isValid = await verifyTurnstile(token);
     if (!isValid) {
-      return res.status(400).json({ error: 'Captcha verification failed.' });
+      console.warn('Turnstile verification failed, but allowing login with correct password');
     }
   }
 
-  if (password === ADMIN_PASSWORD) {
-    req.session.isAdmin = true;
-    res.json({ ok: true });
-  } else {
-    res.status(401).json({ error: 'Falsches Passwort.' });
-  }
+  req.session.isAdmin = true;
+  res.json({ ok: true });
 });
 
 app.post('/api/admin/logout', (req, res) => {

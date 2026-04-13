@@ -35,17 +35,15 @@ export async function doLogin() {
     return;
   }
 
+  // Get Turnstile token if available (optional)
   let token = '';
   if (turnstileConfig.hasTurnstile && window.turnstile) {
-    token = window.turnstile.getResponse(loginTurnstileId);
-    if (!token) {
-      err.textContent = 'Bitte führe die Captcha-Verifizierung durch';
-      return;
-    }
+    token = window.turnstile.getResponse(loginTurnstileId) || '';
   }
 
   const ok = await adminLogin(pw, token);
   if (ok) {
+    err.textContent = '';
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     loadProjects();

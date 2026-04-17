@@ -2,8 +2,8 @@ services:
   wtp-lib:
     container_name: wtp-library
     build: .
-    ports:
-      - "3000:3000"
+    # ports:
+    #   - "3000:3000"
     volumes:
       - ./projects.json:/app/projects.json
     environment:
@@ -14,7 +14,7 @@ services:
       LISTEON_ON: "0.0.0.0"
 
   tunnel:
-    container_name: zoraxy_tunnel # Name of the Cloudflare Tunnel container
+    container_name: wtp-library_tunnel # Name of the Cloudflare Tunnel container
     image: cloudflare/cloudflared:latest # Pull the latest version of the Cloudflare Tunnel image
     restart: unless-stopped # Restart the container unless manually stopped
     volumes:

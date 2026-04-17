@@ -6,7 +6,9 @@ import { esc, decodeWTPCode } from './utils.js';
 import { WTPRunner } from './wtp-runner.js';
 import {
   fetchConfig,
-  fetchProjects,
+  fetchSettings,
+  updateSettings,
+  fetchAllProjects,
   submitProject,
   deleteProject,
   updateProject,
@@ -22,6 +24,7 @@ let prevOutput = { text: '', isError: false };
 let turnstileConfig = { hasTurnstile: false, siteKey: '' };
 let loginTurnstileId = null;
 let addTurnstileId = null;
+let currentAutoStart = true;
 
 // ═══════════════════════════════════════════════════════════════════════
 // Auth
@@ -31,18 +34,12 @@ export async function doLogin() {
   const pw = document.getElementById('a-pw').value;
   const err = document.getElementById('login-err');
 
-  if (!pw) {
-    err.textContent = 'Passwort erforderlich';
-    return;
-  }
+  if (!pw) { err.textContent = 'Passwort erforderlich'; return; }
 
   let token = '';
   if (turnstileConfig.hasTurnstile && window.turnstile) {
     token = window.turnstile.getResponse(loginTurnstileId);
-    if (!token) {
-      err.textContent = 'Bitte führe die Captcha-Verifizierung durch';
-      return;
-    }
+    if (!token) { err.textContent = 'Bitte führe die Captcha-Verifizierung durch'; return; }
   }
 
   const ok = await adminLogin(pw, token);
@@ -52,7 +49,6 @@ export async function doLogin() {
     loadProjects();
   } else {
     err.textContent = 'Falsches Passwort';
-    // Reset Turnstile if enabled
     if (turnstileConfig.hasTurnstile && window.turnstile && loginTurnstileId) {
       window.turnstile.reset(loginTurnstileId);
     }
@@ -66,11 +62,48 @@ export async function doLogout() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// Settings
+// ═══════════════════════════════════════════════════════════════════════
+
+async function loadSettings() {
+  const settings = await fetchSettings();
+  currentAutoStart = settings.autoStart !== false;
+  renderAutoStartToggle();
+}
+
+function renderAutoStartToggle() {
+  const toggle = document.getElementById('autostart-toggle');
+  if (!toggle) return;
+  toggle.checked = currentAutoStart;
+  const label = document.getElementById('autostart-label');
+  if (label) {
+    label.textContent = currentAutoStart
+      ? 'Projekte starten automatisch'
+      : 'Projekte müssen manuell gestartet werden';
+  }
+}
+
+export async function toggleAutoStart() {
+  const toggle = document.getElementById('autostart-toggle');
+  if (!toggle) return;
+  const newVal = toggle.checked;
+  const { ok } = await updateSettings({ autoStart: newVal });
+  if (ok) {
+    currentAutoStart = newVal;
+    renderAutoStartToggle();
+  } else {
+    // Revert on error
+    toggle.checked = currentAutoStart;
+    alert('Fehler beim Speichern der Einstellung');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // Projects
 // ═══════════════════════════════════════════════════════════════════════
 
 export async function loadProjects() {
-  allProjects = await fetchProjects();
+  allProjects = await fetchAllProjects();
   renderList();
 }
 
@@ -80,6 +113,7 @@ function renderList() {
   document.getElementById('s-today').textContent = allProjects.filter(
     p => new Date(p.submittedAt).toDateString() === today
   ).length;
+  document.getElementById('s-hidden').textContent = allProjects.filter(p => p.hidden).length;
 
   const list = document.getElementById('proj-list');
   if (!allProjects.length) {
@@ -89,21 +123,26 @@ function renderList() {
 
   list.innerHTML = allProjects.map((p, i) => {
     const d = new Date(p.submittedAt).toLocaleDateString('de-CH', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
     });
+    const hiddenClass = p.hidden ? ' proj-item--hidden' : '';
+    const hiddenIcon = p.hidden ? '🚫' : '👁';
+    const hiddenTitle = p.hidden ? 'Einblenden' : 'Verstecken';
     return `
-      <div class="proj-item" id="pi-${p.id}">
+      <div class="proj-item${hiddenClass}" id="pi-${p.id}">
         <div class="proj-row">
           <div class="proj-meta">
-            <div class="proj-name"><span class="proj-num">#${i + 1}</span>${esc(p.name)}</div>
+            <div class="proj-name">
+              <span class="proj-num">#${i + 1}</span>
+              ${p.hidden ? '<span class="hidden-badge">VERSTECKT</span>' : ''}
+              ${esc(p.name)}
+            </div>
             <div class="proj-sub">${esc(p.title)} · ${d}</div>
           </div>
           <div class="proj-btns">
             <button class="btn btn-sm btn-b" onclick="openPrev('${p.id}')" title="Vorschau">👁</button>
+            <button class="btn btn-sm ${p.hidden ? 'btn-y' : ''}" onclick="toggleHidden('${p.id}')" title="${hiddenTitle}">${hiddenIcon}</button>
             <button class="btn btn-sm" onclick="toggleEdit('${p.id}')" title="Bearbeiten">✏</button>
             <button class="btn btn-sm btn-r" onclick="delProject('${p.id}','${esc(p.name)}')" title="Löschen">🗑</button>
           </div>
@@ -147,6 +186,18 @@ export async function saveEdit(id) {
   setTimeout(loadProjects, 800);
 }
 
+export async function toggleHidden(id) {
+  const p = allProjects.find(x => x.id === id);
+  if (!p) return;
+  const newHidden = !p.hidden;
+  const { ok, data } = await updateProject(id, undefined, undefined, undefined, newHidden);
+  if (ok) {
+    loadProjects();
+  } else {
+    alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+  }
+}
+
 export async function delProject(id, name) {
   if (!confirm(`Projekt von „${name}" wirklich löschen?`)) return;
   const ok = await deleteProject(id);
@@ -171,11 +222,7 @@ export async function deleteAll() {
 export function checkUrl() {
   const url = document.getElementById('a-url').value.trim();
   const hint = document.getElementById('url-hint');
-  if (!url) {
-    hint.textContent = '';
-    hint.className = 'url-hint';
-    return;
-  }
+  if (!url) { hint.textContent = ''; hint.className = 'url-hint'; return; }
   if (url.includes('webtigerpython.ethz.ch') && url.includes('code=')) {
     hint.textContent = '✓ Gültiger WTP-Link mit Code';
     hint.className = 'url-hint ok';
@@ -216,7 +263,6 @@ export async function doAdd() {
   if (!ok) {
     fb.textContent = data.error;
     fb.className = 'fb err';
-    // Reset Turnstile if enabled
     if (turnstileConfig.hasTurnstile && window.turnstile && addTurnstileId) {
       window.turnstile.reset(addTurnstileId);
     }
@@ -229,7 +275,6 @@ export async function doAdd() {
   document.getElementById('a-title').value = '';
   document.getElementById('a-url').value = '';
   document.getElementById('url-hint').textContent = '';
-  // Reset Turnstile if enabled
   if (turnstileConfig.hasTurnstile && window.turnstile && addTurnstileId) {
     window.turnstile.reset(addTurnstileId);
   }
@@ -267,9 +312,7 @@ export function openPrevWithUrl(url, name) {
 }
 
 function startPrevFrame() {
-  if (prevRunner) {
-    prevRunner.destroy();
-  }
+  if (prevRunner) prevRunner.destroy();
 
   const frame = document.getElementById('prev-frame');
   const ld = document.getElementById('prev-ld');
@@ -297,19 +340,11 @@ function startPrevFrame() {
       setTimeout(() => {
         document.getElementById('prev-status').textContent = 'Wird ausgeführt…';
         ldtxt.textContent = 'Führt aus…';
-        // Hide loading once code is sent
         ld.classList.add('hidden');
       }, 400);
     })
-    .on('output', (text) => {
-      prevOutput.text += text;
-      updatePrevConsole();
-    })
-    .on('error', (text) => {
-      prevOutput.isError = true;
-      prevOutput.text += text;
-      updatePrevConsole();
-    })
+    .on('output', (text) => { prevOutput.text += text; updatePrevConsole(); })
+    .on('error', (text) => { prevOutput.isError = true; prevOutput.text += text; updatePrevConsole(); })
     .on('complete', (text) => {
       prevOutput.text = text;
       document.getElementById('prev-status').textContent = prevOutput.isError ? '✗ Fehler' : '✓ Abgeschlossen';
@@ -328,11 +363,7 @@ export function prevRun() {
 function updatePrevConsole() {
   const co = document.getElementById('prev-co');
   const text = (prevOutput.text || '').trim();
-  if (!text) {
-    co.textContent = '(keine Ausgabe)';
-    co.className = 'prev-console';
-    return;
-  }
+  if (!text) { co.textContent = '(keine Ausgabe)'; co.className = 'prev-console'; return; }
   co.textContent = text.slice(-600);
   co.className = 'prev-console' + (prevOutput.isError ? ' is-err' : '');
   co.scrollTop = co.scrollHeight;
@@ -340,10 +371,7 @@ function updatePrevConsole() {
 
 export function closePrev() {
   document.getElementById('prev-ov').classList.remove('open');
-  if (prevRunner) {
-    prevRunner.destroy();
-    prevRunner = null;
-  }
+  if (prevRunner) { prevRunner.destroy(); prevRunner = null; }
 }
 
 export function closePrevIfBg(e) {
@@ -351,15 +379,16 @@ export function closePrevIfBg(e) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Init
+// Expose to window
 // ═══════════════════════════════════════════════════════════════════════
 
-// Export all functions to window for onclick handlers
 window.doLogin = doLogin;
 window.doLogout = doLogout;
+window.toggleAutoStart = toggleAutoStart;
 window.loadProjects = loadProjects;
 window.toggleEdit = toggleEdit;
 window.saveEdit = saveEdit;
+window.toggleHidden = toggleHidden;
 window.delProject = delProject;
 window.deleteAll = deleteAll;
 window.checkUrl = checkUrl;
@@ -373,16 +402,13 @@ window.closePrevIfBg = closePrevIfBg;
 
 // Check session and load
 window.addEventListener('DOMContentLoaded', async () => {
-  // Load Turnstile config
   turnstileConfig = await fetchConfig();
   if (turnstileConfig.hasTurnstile && window.turnstile) {
     loginTurnstileId = window.turnstile.render('#login-turnstile', {
-      sitekey: turnstileConfig.siteKey,
-      theme: 'light'
+      sitekey: turnstileConfig.siteKey, theme: 'light'
     });
     addTurnstileId = window.turnstile.render('#add-turnstile', {
-      sitekey: turnstileConfig.siteKey,
-      theme: 'light'
+      sitekey: turnstileConfig.siteKey, theme: 'light'
     });
   }
 
@@ -390,6 +416,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (d.isAdmin) {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
+    await loadSettings();
     loadProjects();
   }
 });

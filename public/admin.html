@@ -14,11 +14,11 @@
   <!-- LOGIN -->
   <div id="login-screen">
     <div class="login-box">
-      <div class="icon">??</div>
+      <div class="icon">🔐</div>
       <h1>Admin Panel</h1>
       <p class="sub">Bitte melde dich an</p>
       <div class="pw-row">
-        <input id="a-pw" type="password" placeholder="Passwort" />
+        <input id="a-pw" type="password" placeholder="Passwort" onkeydown="if(event.key==='Enter') doLogin()" />
         <button class="btn-login" onclick="doLogin()">Login</button>
       </div>
       <div id="login-turnstile"></div>
@@ -27,7 +27,7 @@
   </div>
 
   <!-- APP -->
-  <div id="app">
+  <div id="app" style="display:none">
     <header>
       <div class="logo">WTP <em>Admin</em></div>
       <div class="hdr-right">
@@ -37,9 +37,30 @@
     </header>
 
     <div class="layout">
-      <!-- LEFT: Add & Statistics -->
+      <!-- LEFT: Settings, Add & Statistics -->
       <div>
+
+        <!-- AutoStart Setting -->
         <div class="panel">
+          <div class="panel-head">
+            <h2>Einstellungen</h2>
+          </div>
+          <div class="panel-body">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-title">Auto-Start</div>
+                <div class="setting-desc" id="autostart-label">Projekte starten automatisch</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="autostart-toggle" onchange="toggleAutoStart()" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add Project -->
+        <div class="panel" style="margin-top:20px">
           <div class="panel-head">
             <h2>Neues Projekt</h2>
           </div>
@@ -53,12 +74,12 @@
             </div>
             <div id="add-turnstile" style="margin-top:12px;margin-bottom:8px"></div>
             <button class="btn btn-y" style="width:100%;margin-top:8px" onclick="doAdd()">+ Hinzufügen</button>
-            <button class="btn btn-sm" style="width:100%;margin-top:6px;color:var(--muted)"
-              onclick="prevFromInput()">Vorschau</button>
+            <button class="btn btn-sm" style="width:100%;margin-top:6px;color:var(--muted)" onclick="prevFromInput()">Vorschau</button>
             <div class="fb" id="a-fb"></div>
           </div>
         </div>
 
+        <!-- Statistics -->
         <div class="panel" style="margin-top:20px">
           <div class="panel-head">
             <h2>Statistik</h2>
@@ -73,10 +94,15 @@
                 <div class="stat-val" id="s-today">0</div>
                 <div class="stat-lbl">Heute</div>
               </div>
+              <div>
+                <div class="stat-val" id="s-hidden">0</div>
+                <div class="stat-lbl">Versteckt</div>
+              </div>
             </div>
           </div>
         </div>
 
+        <!-- Danger Zone -->
         <div class="panel" style="margin-top:20px">
           <div class="panel-head">
             <h2>Gefahr</h2>

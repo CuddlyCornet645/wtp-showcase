@@ -505,3 +505,49 @@ main {
     grid-template-columns: 1fr;
   }
 }
+/* ── PROJECT COUNT & PROGRESS ─────────────────────────────────────────────── */
+.proj-count {
+  font-size: .78rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+#progress-text {
+  color: var(--muted);
+  font-size: .73rem;
+}
+
+/* ── MANUAL START BUTTON ──────────────────────────────────────────────────── */
+.manual-start {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(248, 249, 250, 0.92);
+  z-index: 5;
+  border-radius: 8px;
+}
+
+.start-btn {
+  font-size: 1.1rem;
+  font-weight: 800;
+  padding: 14px 32px;
+  border-radius: 50px;
+  border: none;
+  background: var(--accent);
+  color: #111827;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(245, 197, 24, 0.45);
+  transition: transform 0.15s, box-shadow 0.15s;
+  letter-spacing: .02em;
+}
+
+.start-btn:hover {
+  transform: scale(1.07);
+  box-shadow: 0 6px 28px rgba(245, 197, 24, 0.6);
+}
+
+.start-btn:active {
+  transform: scale(0.98);
+}

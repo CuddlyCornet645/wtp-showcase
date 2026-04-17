@@ -4,11 +4,12 @@
 
 import { esc, decodeWTPCode } from './utils.js';
 import { WTPRunner } from './wtp-runner.js';
-import { fetchConfig, fetchProjects, submitProject } from './api.js';
+import { fetchConfig, fetchSettings, fetchProjects, submitProject } from './api.js';
 
 let projects = [];
 const runners = new Map(); // id -> WTPRunner instance
 const output = new Map();  // id -> { text, isError }
+let autoStart = true;
 let turnstileConfig = { hasTurnstile: false, siteKey: '' };
 let submitTurnstileId = null;
 
@@ -21,7 +22,10 @@ export async function loadProjects() {
   const count = document.getElementById('count');
   if (count) count.textContent = projects.length;
   renderGrid();
-  autoStartProjects();
+  if (autoStart) {
+    autoStartProjects();
+  }
+  updateProgress();
 }
 
 function renderGrid() {
@@ -33,7 +37,7 @@ function renderGrid() {
       <div class="empty-state">
         <div class="emo">📭</div>
         <h3>Noch keine Projekte</h3>
-        <p>Klicke auf "+ Einreichen" um dein Projekt hinzuzufügen</p>
+        <p>Klicke auf "Einreichen" um dein Projekt hinzuzufügen</p>
       </div>
     `;
     return;
@@ -43,6 +47,7 @@ function renderGrid() {
 }
 
 function cardHTML(p) {
+  const showStartBtn = !autoStart;
   return `
     <div class="card" id="card-${p.id}">
       <div class="card-head">
@@ -56,6 +61,10 @@ function cardHTML(p) {
           <div class="spinner"></div>
           <div id="ld-txt-${p.id}">Lädt…</div>
         </div>
+        ${showStartBtn ? `
+        <div class="manual-start" id="ms-${p.id}">
+          <button class="start-btn" onclick="startProject('${p.id}','${esc(p.url)}')">▶ Starten</button>
+        </div>` : ''}
       </div>
       <div class="status-line" id="sl-${p.id}"></div>
       <div class="console-out empty" id="co-${p.id}">Wartet auf Ausführung…</div>
@@ -76,8 +85,17 @@ function autoStartProjects() {
 }
 
 export function startProject(id, url) {
+  // Hide manual-start overlay if present
+  const ms = document.getElementById(`ms-${id}`);
+  if (ms) ms.style.display = 'none';
+
   if (!output.has(id)) {
     output.set(id, { text: '', isError: false });
+  } else {
+    // Reset output on restart
+    const o = output.get(id);
+    o.text = '';
+    o.isError = false;
   }
 
   // Clean up old runner
@@ -85,6 +103,10 @@ export function startProject(id, url) {
     runners.get(id).destroy();
     runners.delete(id);
   }
+
+  // Show loading
+  const ld = document.getElementById(`ld-${id}`);
+  if (ld) ld.classList.remove('hidden');
 
   // Extract files
   const files = decodeWTPCode(url);
@@ -94,6 +116,7 @@ export function startProject(id, url) {
       co.textContent = '✗ Fehler: Code konnte nicht dekodiert werden';
       co.className = 'console-out is-err';
     }
+    if (ld) ld.classList.add('hidden');
     updateDot(id, 'error');
     return;
   }
@@ -101,6 +124,10 @@ export function startProject(id, url) {
   // Create iframe
   const wrap = document.getElementById(`wrap-${id}`);
   if (!wrap) return;
+
+  // Remove old iframe if exists
+  const oldFrame = document.getElementById(`fr-${id}`);
+  if (oldFrame) oldFrame.remove();
 
   const iframe = document.createElement('iframe');
   iframe.id = `fr-${id}`;
@@ -113,13 +140,11 @@ export function startProject(id, url) {
 
   runner
     .on('ready', () => {
-      // Now show loading text and send code
       setLoadText(id, 'Sendet Code…');
       runner.sendCode(files);
       setTimeout(() => {
         setLoadText(id, 'Führt aus…');
         updateDot(id, 'running');
-        // Hide loading once code is sent
         hideLoading(id);
       }, 400);
     })
@@ -144,7 +169,6 @@ export function startProject(id, url) {
 
   runner.load();
   runners.set(id, runner);
-  // Don't show loading spinner, just wait quietly
   updateDot(id, 'running');
 }
 
@@ -209,7 +233,6 @@ function updateProgress() {
 
 export function openModal() {
   document.getElementById('overlay').classList.add('open');
-  // Initialize Turnstile for submit if enabled and not already rendered
   if (turnstileConfig.hasTurnstile && window.turnstile && !submitTurnstileId) {
     submitTurnstileId = window.turnstile.render('#submit-turnstile', {
       sitekey: turnstileConfig.siteKey,
@@ -221,7 +244,6 @@ export function openModal() {
 export function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   setFb('', null);
-  // Reset Turnstile on close
   if (turnstileConfig.hasTurnstile && window.turnstile && submitTurnstileId) {
     window.turnstile.reset(submitTurnstileId);
   }
@@ -265,7 +287,6 @@ export async function doSubmit() {
   const { ok, data } = await submitProject(name, title, url, token);
   if (!ok) {
     setFb(data.error || 'Fehler beim Einreichen', true);
-    // Reset Turnstile on error
     if (turnstileConfig.hasTurnstile && window.turnstile && submitTurnstileId) {
       window.turnstile.reset(submitTurnstileId);
     }
@@ -284,7 +305,7 @@ export async function doSubmit() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Init
+// Expose to window
 // ═══════════════════════════════════════════════════════════════════════
 
 window.loadProjects = loadProjects;
@@ -297,7 +318,8 @@ window.doSubmit = doSubmit;
 
 // Auto-load on page load
 window.addEventListener('DOMContentLoaded', async () => {
-  // Load Turnstile config
-  turnstileConfig = await fetchConfig();
+  [turnstileConfig] = await Promise.all([fetchConfig()]);
+  const settings = await fetchSettings();
+  autoStart = settings.autoStart !== false;
   loadProjects();
 });
